@@ -1,0 +1,346 @@
+<html>
+<head>
+	<title>Dista Reza Home Scanner</title>
+	<link rel="stylesheet" href="scripts/jquery-ui-1.12.1/jquery-ui.css">
+	<script type="text/javascript" src="scripts/jquery-3.5.1.min.js"></script>
+	<script type="text/javascript" src="scripts/jquery-ui-1.12.1/jquery-ui.min.js"></script>
+
+	<script>
+  $( function() {
+		$( "#tabs" ).tabs();
+
+		$("#btnScan").click(function() {
+			console.log("btnScan triggered");
+
+			var spanMessage = $("<span>");
+			var imgLoading = $("<img src=\"images/spinner-small.gif\" style=\"width: 30px\" />");
+			$(spanMessage).text("Please Place Document Ready on the Scanner Device and Press Scan");
+			var divPopup = $("<div>").append(spanMessage).append(imgLoading);
+			$(imgLoading).hide();
+
+			$( divPopup ).dialog({
+				modal: true,
+				buttons: [{
+						id: "btnScan",
+						text: "scan",
+						click: function() {
+										$.ajax( {
+											url: "scandocument",
+											dataType: "json",
+											//data: $("#formProductContent").serialize(),
+											beforeSend: function(xhr){
+												$("body").addClass("loading");
+												$(".ui-button").prop('disabled', true);
+												$(spanMessage).text("Scanning in progress, Please wait...");
+												$("button#btnScan").text("scanning...");
+												$("button#btnScan").addClass("ui-state-disabled");
+												$("button#btnClose").hide();
+												$(imgLoading).show();
+											},
+											complete: function (xhr,status) {
+												$("body").removeClass("loading");
+												$(".ui-button").prop('disabled', false);
+												$("button#btnScan").text("scan");
+												$("button#btnScan").removeClass("ui-state-disabled");
+												$("button#btnClose").show();
+												$(imgLoading).hide();
+											},
+											error : function(xhr,status,error) {
+												console.error(error);
+												$(spanMessage).text(xhr.responseText);
+											},
+											success: function (data,status,xhr) {
+												if (data) {
+													$(spanMessage).text(data.message + ", Press Scan to Scan another Document");
+												} else {
+													$(spanMessage).text("Scan Failed");
+												}
+												showAllDocument();
+											}
+										});
+									}
+					},{
+						id: "btnClose",
+						text:"close",
+						click: function() {
+							$( this ).dialog( "close" );
+					  }
+					}]
+				});
+
+		});
+
+		$("#btnConvertPDF").click(function() {
+
+			console.log("btnConvertPDF triggered");
+			var spanMessage = $("<span>");
+			var imgLoading = $("<img src=\"images/spinner-small.gif\" style=\"width: 30px\" />");
+			$(spanMessage).text("All Scanned Images will be combine to one PDF File");
+			var divPopup = $("<div>").append(spanMessage).append(imgLoading);
+			$(imgLoading).hide();
+
+			$( divPopup ).dialog({
+				modal: true,
+				buttons: [{
+						id: "btnConvert",
+						text: "convert",
+						click: function() {
+										$.ajax( {
+											url: "convertPDF",
+											dataType: "json",
+											beforeSend: function(xhr){
+												$("body").addClass("loading");
+												$(".ui-button").prop('disabled', true);
+												$(spanMessage).text("Conversion in progress, Please wait...");
+												$("button#btnConvert").text("converting...");
+												$("button#btnConvert").addClass("ui-state-disabled");
+												$("button#btnClose").hide();
+												$(imgLoading).show();
+											},
+											complete: function (xhr,status) {
+												$("body").removeClass("loading");
+												$(".ui-button").prop('disabled', false);
+												$("button#btnConvert").text("convert");
+												$("button#btnConvert").removeClass("ui-state-disabled");
+												$("button#btnClose").show();
+												$(imgLoading).hide();
+											},
+											error : function(xhr,status,error) {
+												console.error(error);
+												$(spanMessage).text(xhr.responseText);
+											},
+											success: function (data,status,xhr) {
+												if (data) {
+													$(spanMessage).text(data.message);
+												} else {
+													$(spanMessage).text("Convertion Failed");
+												}
+												$("button#btnConvert").hide();
+												showAllDocument();
+											}
+										});
+									}
+					},{
+						id: "btnClose",
+						text:"close",
+						click: function() {
+							$( this ).dialog( "close" );
+					  }
+					}]
+				});
+		});
+
+		$("#btnDeleteAll").click(function(){
+				deleteAllFile();
+		});
+
+		//showDeviceName();
+		showAllDocument();
+	});
+
+	function showDeviceName() {
+		$("#divScannerName").append($("<img src=\"images/spinner-small.gif\" style=\"width: 20px\">")).append( $("<span>").text("Please wait..."));
+		$.ajax( {
+			url: "getScannerName",
+			dataType: "json",
+			beforeSend: function(xhr){
+			},
+			complete: function (xhr,status) {
+			},
+			error : function(xhr,status,error) {
+				$("#divScannerName").empty();
+				console.error(error);
+				showPopup(xhr.responseText);
+			},
+			success: function (data,status,xhr) {
+				console.log("show device name");
+				var divScannerName = $("#divScannerName");
+				$(divScannerName).empty();
+				if (data) {
+						$(divScannerName).text(data.message);
+				} else {
+					$(divScannerName).text("No Scanner Device is available");
+				}
+			}
+		});
+	}
+
+	function showAllDocument() {
+
+		$.ajax( {
+			url: "showdocuments",
+			dataType: "json",
+			beforeSend: function(xhr){
+			},
+			complete: function (xhr,status) {
+			},
+			error : function(xhr,status,error) {
+				console.error(error);
+				showPopup(xhr.responseText);
+			},
+			success: function (data,status,xhr) {
+				console.log("list down all document");
+				var divScannedFiles = $("#divScannedFiles");
+				$(divScannedFiles).empty();
+				if (data && data.length>0 ) {
+					$.each(data, function(idx, fileName) {
+						$(divScannedFiles).append(
+								$("<DIV>")
+									.css({width: "250px", textAlign: "center", float: "left"})
+									.append($("<IMG src=\"showImage?fileName=" + fileName + "\" style=\"width: 200px; cursor: pointer\" onclick=\"window.open('getFile?fileName=" + fileName + "');\" >"))
+									.append($("<SPAN>").text(fileName))
+									.append("&nbsp;")
+									.append($("<input type='button' value='delete' onclick=\"deleteFile('" + fileName + "')\">"))
+						)
+					});
+					$("#btnDeleteAll").show();
+					$("#btnConvertPDF").show();
+				} else {
+					$("#btnDeleteAll").hide();
+					$("#btnConvertPDF").hide();
+					$(divScannedFiles).append($("<DIV>").text("No File is available"));
+				}
+			}
+		});
+	}
+
+	function deleteFile(fileName) {
+		var divPopup = $("<div>");
+		var spMessage = $("<span>").text("Are You Sure?");
+		$(divPopup).append(spMessage);
+		$( divPopup ).dialog({
+			modal: true,
+			buttons: [
+				{
+					id: "btnDelete",
+					text: "Delete",
+					click: function() {
+	 					console.log("deleting " + fileName);
+	 					$.ajax( {
+	 						url: "deletedocument",
+	 						dataType: "json",
+	 						data: {fileid: fileName},
+							beforeSend: function(xhr){
+								$("body").addClass("loading");
+								$(".ui-button").prop('disabled', true);
+								$("button#btnDelete").text("deleting...");
+								$("button#btnDelete").addClass("ui-state-disabled");
+								$("button#btnClose").hide();
+							},
+							complete: function (xhr,status) {
+								$("body").removeClass("loading");
+								$(".ui-button").prop('disabled', false);
+								$("button#btnDelete").text("delete");
+								$("button#btnDelete").removeClass("ui-state-disabled");
+								$("button#btnClose").show();
+							},
+	 						error : function(xhr,status,error) {
+	 							console.error(error);
+	 							$(spMessage).text(xhr.responseText);
+	 						},
+	 						success: function (data,status,xhr) {
+	 							$(spMessage).text("file " + fileName + " Deleted");
+								$("button#btnDelete").hide();
+								$("button#btnClose").text("close");
+	 							showAllDocument();
+	 						}
+	 					});
+ 					}
+				},{
+					id: "btnClose",
+					text: "Cancel",
+					click: function() {
+ 						$( this ).dialog( "close" );
+ 					}
+				}
+			]
+		});
+	}
+
+	function deleteAllFile() {
+		var divPopup = $("<div>");
+		var spMessage = $("<span>").text("Are You Sure?");
+		$(divPopup).append(spMessage);
+		$( divPopup ).dialog({
+			modal: true,
+			buttons: [
+				{
+					id: "btnDelete",
+					text: "Delete",
+					click: function() {
+	 					console.log("deleting all file");
+	 					$.ajax( {
+	 						url: "deletealldocument",
+	 						dataType: "json",
+							beforeSend: function(xhr){
+								$("body").addClass("loading");
+								$(".ui-button").prop('disabled', true);
+								$("button#btnDelete").text("deleting...");
+								$("button#btnDelete").addClass("ui-state-disabled");
+								$("button#btnClose").hide();
+							},
+							complete: function (xhr,status) {
+								$("body").removeClass("loading");
+								$(".ui-button").prop('disabled', false);
+								$("button#btnDelete").text("delete");
+								$("button#btnDelete").removeClass("ui-state-disabled");
+								$("button#btnClose").show();
+							},
+	 						error : function(xhr,status,error) {
+	 							console.error(error);
+	 							$(spMessage).text(xhr.responseText);
+	 						},
+	 						success: function (data,status,xhr) {
+	 							$(spMessage).text("All File Deleted");
+								$("button#btnDelete").hide();
+								$("button#btnClose").text("close");
+	 							showAllDocument();
+	 						}
+	 					});
+ 					}
+				},{
+					id: "btnClose",
+					text: "Cancel",
+					click: function() {
+ 						$( this ).dialog( "close" );
+ 					}
+				}
+			]
+		});
+	}
+
+	function showPopup(message) {
+		var divPopup = $( "<div></div>" ).append($("<p>").html(message));
+		$( divPopup ).dialog({
+			modal: true,
+			buttons: {
+			  Ok: function() {
+				$( this ).dialog( "close" );
+			  }
+			}
+		  });
+	}
+
+	</script>
+</head>
+<body>
+	<center><H1>Dista Reza Home Scanner</title></center>
+	<hr>
+
+<div id="tabs">
+  <ul>
+    <li><a href="#tabs-1">Scan Document</a></li>
+  </ul>
+  <div id="tabs-1">
+		<p><div id="divScannerName"></div></p>
+    <p>
+			<span>Scan Document </span>
+			<input type="button" value="scan" id="btnScan" />&nbsp;
+			<input type="button" value="convert PDF" id="btnConvertPDF"/>&nbsp;
+			<input type="button" value="Remove All file" id="btnDeleteAll"/></p>
+	<div id="divScannedFiles" style="overflow: auto;"></div>
+  </div>
+</div>
+
+</body>
+</html>
